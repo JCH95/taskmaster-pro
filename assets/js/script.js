@@ -59,7 +59,7 @@ $("#task-form-modal").on("shown.bs.modal", function() {
 });
 
 // save button in modal was clicked
-$("#task-form-modal .btn-primary").click(function() {
+$("#task-form-modal .btn-save").click(function() {
   // get form values
   var taskText = $("#modalTaskDescription").val();
   var taskDate = $("#modalDueDate").val();
@@ -96,7 +96,7 @@ $(".list-group").on("click", "p", function() {
 });
 
 // Editable field was un-focused
-$(".list-group").on("change", "input[type='text']", function() {
+$(".list-group").on("blur", "textarea", function() {
   // get the textarea's current value/text
   var text = $(this).val()
 
@@ -184,81 +184,85 @@ $(".list-group").on("change", "input[type='text']", function() {
     auditTask($(taskSpan).closest(".list-group-item"));
 });
 
+// Enable draggable/sortable feature on list-group elements
 $(".card .list-group").sortable({
+  // enable dragging across lists
   connectWith: $(".card .list-group"),
   scroll: false,
   tolerance: "pointer",
   helper: "clone",
-  activate: function(event) {
-    console.log("activate", this);
+  activate: function(event, ui) {
+    $(this).addClass("dropover");
+    $(".bottom-trash").addClass("bottom-trash-drag");
   },
   deactivate: function(event) {
-    console.log("deactivate", this);
+    $(this).removeClass("dropover");
+    $(".bottom-trash").removeClass("bottom-trash-drag");
   },
   over: function(event) {
-    console.log("over", event.target);
+    $(event.target).addClass("dropover-active");
   },
   out: function(event) {
-    console.log("out", event.target);
+    $(event.target).removeClass("dropover-active");
   },
-  update: function(event) {
+  update: function() {
     // Array to store the task data in
     var tempArr = [];
     // Loop over current set of children in sortable list
-    $(this).children().each(function() {
-      var text = $(this)
-        .find("p")
-        .text()
-        .trim();
-
-      var date = $(this)
-        .find("span")
-        .text()
-        .trim();
-      // Add tast data to the temp array as an object
-      tempArr.push({
-        text: text,
-        date: date
-      });  
-    });
+    $(this)
+      .children()
+      .each(function() {
+        // Save values in temp array
+        tempArr.push({
+          text: $(this)
+            .find("p")
+            .text()
+            .trim(),
+          date: $(this)
+            .find("span")
+            .text()
+            .trim()
+        });  
+      });
 
     // trim down list's ID to match object property
     var arrName = $(this)
-    .attr("id")
-    .replace("list-", "");
+      .attr("id")
+      .replace("list-", "");
 
     // update array on tasks object and save
     tasks[arrName] = tempArr;
     saveTasks();
-
-    console.log(tempArr);
   }
 });
 
+// Trash icon can be dropped onto
 $("#trash").droppable({
   accept: ".card .list-group-item",
   tolerance: "touch",
   drop: function(event, ui) {
+    // Remove dragged element from the dom
     ui.draggable.remove();
-    console.log("drop");
+    $(".bottom-trash").removeClass("bottom-trash-active");
   },
   over: function(event, ui) {
-    console.log("over");
+    console.log(ui);
+    $(".bottom-trash").addClass("bottom-trash-active");
   },
   out: function(event, ui) {
-    console.log("out");
+    $(".bottom-trash").removeClass("bottom-trash-active");
   }
 });
 
+// Convert text field into a jquery date picker
 $("#modalDueDate").datepicker({
+  // Force user to select a future date
   minDate: 1
 });
 
 var auditTask = function(taskEl) {
   // get date from task element
-  var date = $(taskEl).find("span").text().trim();
-  // ensure it worked
-  console.log(date); 
+  var date = $(taskEl).find("span").text().trim(); 
   
   // convert to moment object at 5:00pm
   var time = moment(date, "L").set("hour", 17);
@@ -287,4 +291,9 @@ $("#remove-tasks").on("click", function() {
 // load tasks for the first time
 loadTasks();
 
-
+// Audit task due dates every 30 minutes
+setInterval(function() {
+  $(".card .list-group-item").each(function() {
+    auditTask($(this));
+  });
+}, 1800000);
